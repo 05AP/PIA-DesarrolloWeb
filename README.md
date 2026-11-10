@@ -15,6 +15,7 @@ Proyecto desarrollado para la materia **Desarrollo Web: Tecnologías Servidor**.
 | Alan Emiliano Palomo Plata | 2048459 |
 | Leonardo Daniel Vazquez Meza | 1897973 |
 | José Emilio Rivera Reyna | 2013503 |
+ 
  El sistema resuelve la problemática operativa de una gasolinera:
 - Control riguroso de inventario en tanques subterráneos (`Magna`, `Premium`, `Diésel`) para evitar desabasto o derrames.
 - Administración y auditoría de dispensarios (bombas) físicas por islas con lecturas de odómetros no regresivos.
