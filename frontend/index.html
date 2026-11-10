@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⛽ Gasolinera Central - Sistema de Operaciones y POS</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .ticket-paper {
+      background: #fbfbfa;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .ticket-paper::after {
+      content: "";
+      position: absolute;
+      bottom: -8px;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: radial-gradient(circle, transparent, transparent 50%, #fbfbfa 50%, #fbfbfa 100%);
+      background-size: 16px 16px;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- NAVBAR HEADER -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <span class="text-3xl">⛽</span>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            Gasolinera Central <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">v1.0 API</span>
+          </h1>
+          <p class="text-xs text-slate-400">Sistema de Control Operativo y Terminal de Punto de Venta (POS)</p>
+        </div>
+      </div>
+
+      <!-- TABS DE NAVEGACIÓN -->
+      <nav class="flex space-x-1 bg-slate-800 p-1 rounded-xl">
+        <button onclick="switchTab('pos')" id="tab-btn-pos" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all bg-amber-500 text-slate-950 shadow">
+          Terminal Despachador (POS)
+        </button>
+        <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all text-slate-300 hover:text-white">
+          Panel de Tanques (Dashboard)
+        </button>
+        <button onclick="switchTab('corte')" id="tab-btn-corte" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all text-slate-300 hover:text-white">
+          Corte de Turno
+        </button>
+      </nav>
+
+      <!-- SWITCH RÁPIDO DE USUARIOS PARA DEMO -->
+      <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+        <span class="text-xs text-slate-400 font-medium">Rol Demo:</span>
+        <select id="userSelector" onchange="cambiarUsuarioDemo()" class="bg-slate-900 text-xs text-white rounded px-2 py-1 border border-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-400 font-medium cursor-pointer">
+          <option value="despachador">Despachador (Pista)</option>
+          <option value="supervisor">Supervisor (Turno)</option>
+          <option value="admin">Administrador (General)</option>
+        </select>
+        <div id="statusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400" title="API Online"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ALERTAS Y MENSAJES FLOTANTES -->
+    <div id="alertBox" class="hidden mb-6 p-4 rounded-xl border text-sm font-medium shadow-sm transition-all"></div>
+
+    <!-- PANTALLA 1: TERMINAL DEL DESPACHADOR (POS)-->
+    <section id="view-pos" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- COLUMNA IZQUIERDA: SELECTOR DE BOMBA Y CONFIGURACIÓN -->
+      <div class="lg:col-span-7 space-y-6">
+        
+        <!-- SELECCIÓN DE BOMBA FÍSICA -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">1. Seleccionar Bomba de Pista</h2>
+              <p class="text-xs text-slate-500">Selecciona el dispensario donde se despachará el vehículo</p>
+            </div>
+            <button onclick="cargarBombas()" class="text-xs text-amber-600 hover:text-amber-700 font-semibold flex items-center gap-1">
+              🔄 Actualizar
+            </button>
+          </div>
+
+          <div id="bombasGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- Renderizado dinámico de bombas -->
+            <div class="p-4 text-center text-xs text-slate-400 col-span-4">Cargando dispensarios...</div>
+          </div>
+        </div>
+
+        <!-- FORMULARIO DE DESPACHO -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+          <h2 class="text-base font-bold text-slate-900">2. Parámetros de Venta y Cobro</h2>
+
+          <!-- RESUMEN DE LA BOMBA SELECCIONADA -->
+          <div id="bombaInfoCard" class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span id="badgeCombustible" class="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200">
+                MAGNA
+              </span>
+              <div>
+                <div class="text-xs text-slate-500">Precio Vigente por Litro:</div>
+                <div class="text-lg font-bold text-slate-900">$<span id="precioLitroText">23.99</span> <span class="text-xs font-normal text-slate-500">MXN/L</span></div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-slate-500">Odómetro Actual:</div>
+              <div class="text-xs font-mono font-bold text-slate-700" id="odometroActualText">125,400.5 L</div>
+            </div>
+          </div>
+
+          <!-- MODO DE CAPTURA: POR LITROS O POR IMPORTE -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Volumen en Litros (L):</label>
+              <div class="relative">
+                <input type="number" id="inputLitros" step="0.01" min="1" value="20.00" oninput="calcularPorLitros()"
+                       class="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 text-base focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                <span class="absolute right-3 top-3 text-xs font-bold text-slate-400">L</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Total a Pagar ($ MXN):</label>
+              <div class="relative">
+                <input type="number" id="inputMonto" step="0.01" min="1" value="479.80" oninput="calcularPorMonto()"
+                       class="w-full pl-3 pr-12 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-emerald-700 text-base focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                <span class="absolute right-3 top-3 text-xs font-bold text-slate-400">MXN</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTONES RÁPIDOS -->
+          <div class="flex gap-2">
+            <span class="text-xs text-slate-400 self-center">Rápido:</span>
+            <button onclick="setLitros(10)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700">10 L</button>
+            <button onclick="setLitros(20)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700">20 L</button>
+            <button onclick="setLitros(40)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700">40 L</button>
+            <button onclick="setMonto(200)" class="px-2.5 py-1 text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg">$200</button>
+            <button onclick="setMonto(500)" class="px-2.5 py-1 text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg">$500</button>
+          </div>
+
+          <!-- MÉTODO DE PAGO -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-2">Método de Pago:</label>
+            <div class="grid grid-cols-3 gap-2">
+              <label class="cursor-pointer border border-slate-300 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/50 has-[:checked]:text-amber-900">
+                <input type="radio" name="metodoPago" value="EFECTIVO" checked class="hidden">
+                <span class="text-lg mb-1">💵</span>
+                <span class="text-xs font-bold">Efectivo</span>
+              </label>
+              <label class="cursor-pointer border border-slate-300 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/50 has-[:checked]:text-amber-900">
+                <input type="radio" name="metodoPago" value="TARJETA" class="hidden">
+                <span class="text-lg mb-1">💳</span>
+                <span class="text-xs font-bold">Tarjeta</span>
+              </label>
+              <label class="cursor-pointer border border-slate-300 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/50 has-[:checked]:text-amber-900">
+                <input type="radio" name="metodoPago" value="VALES" class="hidden">
+                <span class="text-lg mb-1">🏷️</span>
+                <span class="text-xs font-bold">Vales / Flotilla</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- CAMPOS OPCIONALES DE CLIENTE -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Placa del Vehículo (Opcional):</label>
+              <input type="text" id="inputPlaca" placeholder="Ej: NL-8899-K" maxlength="15"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs uppercase font-medium focus:ring-1 focus:ring-amber-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Nombre / Razón Social (Opcional):</label>
+              <input type="text" id="inputCliente" placeholder="Ej: Transportes del Norte" maxlength="50"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-1 focus:ring-amber-500 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- BOTÓN DE ACCIÓN CENTRAL ACID -->
+          <button id="btnDespachar" onclick="ejecutarDespacho()" class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm mt-3">
+            <span>🚀</span> Cobrar y Despachar Combustible
+          </button>
+        </div>
+
+      </div>
+
+      <!-- COLUMNA DERECHA: TICKET TÉRMICO DIGITAL -->
+      <div class="lg:col-span-5 flex flex-col items-center justify-start">
+        <div class="w-full max-w-sm">
+          <div class="ticket-paper p-6 rounded-t-2xl border border-slate-300 text-slate-800 text-xs font-mono">
+            <div class="text-center pb-3 border-b border-dashed border-slate-300 space-y-1">
+              <h3 class="font-bold text-sm tracking-wider text-slate-900">ESTACIÓN DE SERVICIO CENTRAL</h3>
+              <p class="text-[10px] text-slate-500">GASOLINERA Y SERVICIOS S.A. DE C.V.</p>
+              <p class="text-[10px] text-slate-500">RFC: GSC261110-99A</p>
+              <p class="text-[10px] text-slate-500">Av. Universidad #100, Monterrey, N.L.</p>
+            </div>
+
+            <div class="py-3 border-b border-dashed border-slate-300 space-y-1.5" id="ticketBody">
+              <div class="flex justify-between text-slate-500">
+                <span>FOLIO:</span>
+                <span class="font-bold text-slate-900" id="ticketFolio">---</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>FECHA:</span>
+                <span id="ticketFecha">--/--/---- --:--</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>DESPACHADOR:</span>
+                <span id="ticketDespachador">Juan Pérez</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>DISPENSARIO:</span>
+                <span id="ticketBomba">Bomba #1 (Isla 1)</span>
+              </div>
+            </div>
+
+            <div class="py-3 border-b border-slate-800 space-y-2">
+              <div class="flex justify-between font-bold text-slate-900 text-sm">
+                <span id="ticketCombustible">MAGNA (REGULAR)</span>
+                <span id="ticketLitros">0.00 L</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>PRECIO / LITRO:</span>
+                <span id="ticketPrecioUnitario">$0.00 MXN</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>MÉTODO DE PAGO:</span>
+                <span id="ticketMetodoPago">EFECTIVO</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>PLACA / VEHÍCULO:</span>
+                <span id="ticketPlaca">---</span>
+              </div>
+              <div class="flex justify-between text-slate-500 text-[10px]">
+                <span>ODÓMETRO:</span>
+                <span id="ticketOdometro">Inicial: 0 | Final: 0</span>
+              </div>
+            </div>
+
+            <div class="pt-3 pb-2 flex justify-between items-baseline">
+              <span class="text-sm font-bold text-slate-900">TOTAL:</span>
+              <span class="text-2xl font-black text-slate-950 font-sans" id="ticketTotal">$0.00</span>
+            </div>
+
+            <div class="text-center pt-4 text-[10px] text-slate-400 space-y-1">
+              <p>*** GRACIAS POR SU PREFERENCIA ***</p>
+              <p>Comprobante de despacho autorizado</p>
+            </div>
+          </div>
+          <div class="text-center mt-4">
+            <button onclick="window.print()" class="text-xs text-slate-500 hover:text-slate-700 font-semibold underline">
+              🖨️ Imprimir Recibo
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 2: PANEL DE MONITOREO (DASHBOARD  -->
+    <section id="view-dashboard" class="hidden space-y-8">
+      
+      <!-- ENCABEZADO DASHBOARD -->
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Nivel de Tanques Subterráneos de Almacenamiento</h2>
+          <p class="text-xs text-slate-500">Supervisión en tiempo real del inventario físico y capacidad volumétrica</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="abrirModalPipa()" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-1.5 shadow">
+            🚛 Descargar Pipa
+          </button>
+          <button onclick="cargarDashboard()" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5">
+            🔄 Refrescar
+          </button>
+        </div>
+      </div>
+
+      <!-- CARDS DE TANQUES SUBTERRÁNEOS -->
+      <div id="tanquesContainer" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Renderizado dinámico de tanques -->
+        <div class="col-span-3 text-center py-10 text-slate-400">Cargando inventario de tanques...</div>
+      </div>
+
+      <!-- TABLA DE ÚLTIMAS TRANSACCIONES -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Historial Reciente de Despachos</h3>
+            <p class="text-xs text-slate-500">Transacciones atómicas registradas en tiempo real</p>
+          </div>
+          <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-medium" id="totalTransaccionesBadge">0 transacciones</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-3">Folio</th>
+                <th class="py-3 px-3">Fecha / Hora</th>
+                <th class="py-3 px-3">Bomba</th>
+                <th class="py-3 px-3">Combustible</th>
+                <th class="py-3 px-3">Volumen</th>
+                <th class="py-3 px-3">Total</th>
+                <th class="py-3 px-3">Método</th>
+                <th class="py-3 px-3">Despachador</th>
+              </tr>
+            </thead>
+            <tbody id="tablaVentasBody" class="divide-y divide-slate-100 text-slate-700 font-medium">
+              <tr>
+                <td colspan="8" class="text-center py-6 text-slate-400">Cargando ventas...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3: ARQUEO Y CORTE DE TURNO -->
+    <section id="view-corte" class="hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap justify-between items-center gap-4 border-b border-slate-200 pb-4 mb-6">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Corte de Caja y Arqueo de Turno</h2>
+            <p class="text-xs text-slate-500">Conciliación volumétrica y financiera de la estación</p>
+          </div>
+          <button onclick="generarCorte()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs shadow">
+            ⚡ Ejecutar Cuadre Ahora
+          </button>
+        </div>
+
+        <div id="corteResultContainer" class="space-y-6">
+          <div class="text-center py-10 text-slate-400">Presiona "Ejecutar Cuadre Ahora" para obtener el arqueo consolidado.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: RECEPCIÓN DE PIPA (SUPERVISOR) -->
+  <div id="modalPipa" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <span>🚛</span> Descarga de Pipa a Tanque
+        </h3>
+        <button onclick="cerrarModalPipa()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Tanque Destino:</label>
+          <select id="pipaTanqueId" class="w-full p-2.5 bg-slate-50 border rounded-xl font-medium focus:ring-1 focus:ring-amber-500">
+            <option value="1">Tanque #1 - MAGNA</option>
+            <option value="2">Tanque #2 - PREMIUM</option>
+            <option value="3">Tanque #3 - DIESEL</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Folio de Remisión / Factura:</label>
+          <input type="text" id="pipaRemision" placeholder="Ej: REM-PEMEX-99881" class="w-full p-2.5 bg-slate-50 border rounded-xl font-mono uppercase">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Proveedor / Distribuidor:</label>
+          <input type="text" id="pipaProveedor" value="PEMEX Logística y Distribución" class="w-full p-2.5 bg-slate-50 border rounded-xl">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Litros a Descargar:</label>
+            <input type="number" id="pipaLitros" step="100" value="5000" class="w-full p-2.5 bg-slate-50 border rounded-xl font-bold">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Costo Adquisición ($/L):</label>
+            <input type="number" id="pipaCosto" step="0.1" value="20.80" class="w-full p-2.5 bg-slate-50 border rounded-xl font-bold">
+          </div>
+        </div>
+        <div>
+          <label class="block font-medium text-slate-600 mb-1">Notas de Recepción:</label>
+          <input type="text" id="pipaNotas" placeholder="Bitácora de descarga" class="w-full p-2.5 bg-slate-50 border rounded-xl">
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="cerrarModalPipa()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">
+          Cancelar
+        </button>
+        <button onclick="ejecutarRecepcionPipa()" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow">
+          Confirmar Descarga
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT DEL FRONTEND -->
+  <script>
+    // Configuración base de la API
+    // Si el frontend lo sirve el propio backend (local o en la nube) se usa el mismo origen;
+    // si se abre como archivo local (file://) se apunta al servidor de desarrollo.
+    const API_BASE = window.location.protocol.startsWith('http')
+      ? window.location.origin + '/api/v1'
+      : 'http://127.0.0.1:8000/api/v1';
+
+    // Escapa texto antes de insertarlo con innerHTML (previene XSS con datos del servidor)
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[ch]));
+    }
+
+    // Convierte el "detail" de FastAPI (texto o lista de errores 422 de Pydantic) en un mensaje legible
+    function formatearError(data, porDefecto) {
+      const detail = data && data.detail;
+      if (!detail) return porDefecto;
+      if (Array.isArray(detail)) {
+        return detail.map(e => `${(e.loc || []).slice(1).join('.')}: ${e.msg}`).join(' | ');
+      }
+      return String(detail);
+    }
+
+    let currentToken = '';
+    let currentRole = 'DESPACHADOR';
+    let bombasData = [];
+    let tanquesData = [];
+    let selectedBomba = null;
+
+    // Credenciales de prueba integradas
+    const CREDENCIALES = {
+      despachador: { email: 'despachador@gasolinera.com', password: 'despachador123', rol: 'DESPACHADOR' },
+      supervisor: { email: 'supervisor@gasolinera.com', password: 'supervisor123', rol: 'SUPERVISOR' },
+      admin: { email: 'admin@gasolinera.com', password: 'admin123', rol: 'ADMIN' },
+    };
+
+    // Inicialización al cargar la página
+    window.addEventListener('DOMContentLoaded', async () => {
+      await cambiarUsuarioDemo();
+      await cargarBombas();
+      await cargarDashboard();
+    });
+
+    // Cambiar usuario y autenticarse dinámicamente
+    async function cambiarUsuarioDemo() {
+      const selector = document.getElementById('userSelector').value;
+      const creds = CREDENCIALES[selector];
+      try {
+        const resp = await fetch(`${API_BASE}/auth/login/json`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: creds.email, password: creds.password })
+        });
+        if (!resp.ok) throw new Error('Error al autenticar');
+        const data = await resp.json();
+        currentToken = data.access_token;
+        currentRole = data.rol;
+        mostrarAlerta(`Sesión iniciada como: ${data.nombre} (${data.rol})`, 'success');
+      } catch (err) {
+        console.error(err);
+        mostrarAlerta('No se pudo conectar con el backend en ' + API_BASE + '. ¿Está corriendo el servidor?', 'error');
+      }
+    }
+
+    // Navegación de pestañas
+    function switchTab(tab) {
+      document.getElementById('view-pos').classList.add('hidden');
+      document.getElementById('view-dashboard').classList.add('hidden');
+      document.getElementById('view-corte').classList.add('hidden');
+
+      document.getElementById('tab-btn-pos').className = 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-300 hover:text-white transition-all';
+      document.getElementById('tab-btn-dashboard').className = 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-300 hover:text-white transition-all';
+      document.getElementById('tab-btn-corte').className = 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-300 hover:text-white transition-all';
+
+      if (tab === 'pos') {
+        document.getElementById('view-pos').classList.remove('hidden');
+        document.getElementById('tab-btn-pos').className = 'px-4 py-2 text-sm font-semibold rounded-lg bg-amber-500 text-slate-950 shadow transition-all';
+        cargarBombas();
+      } else if (tab === 'dashboard') {
+        document.getElementById('view-dashboard').classList.remove('hidden');
+        document.getElementById('tab-btn-dashboard').className = 'px-4 py-2 text-sm font-semibold rounded-lg bg-amber-500 text-slate-950 shadow transition-all';
+        cargarDashboard();
+      } else if (tab === 'corte') {
+        document.getElementById('view-corte').classList.remove('hidden');
+        document.getElementById('tab-btn-corte').className = 'px-4 py-2 text-sm font-semibold rounded-lg bg-amber-500 text-slate-950 shadow transition-all';
+        generarCorte();
+      }
+    }
+
+    // LÓGICA DE BOMBAS Y DESPACHO (POS)
+
+    async function cargarBombas() {
+      try {
+        const res = await fetch(`${API_BASE}/bombas/`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!res.ok) return;
+        bombasData = await res.json();
+        renderizarBombasGrid();
+        if (bombasData.length > 0 && !selectedBomba) {
+          seleccionarBomba(bombasData[0].id);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderizarBombasGrid() {
+      const container = document.getElementById('bombasGrid');
+      container.innerHTML = '';
+
+      bombasData.forEach(b => {
+        const isSelected = selectedBomba && selectedBomba.id === b.id;
+        const colorBorder = isSelected ? 'border-amber-500 ring-2 ring-amber-400 bg-amber-50/40' : 'border-slate-200 bg-white hover:border-slate-300';
+        const isActiva = b.estado === 'ACTIVA';
+        const badgeEstado = isActiva 
+          ? '<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">ACTIVA</span>'
+          : `<span class="text-[9px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-full font-bold">${b.estado}</span>`;
+
+        container.innerHTML += `
+          <div onclick="seleccionarBomba(${b.id})" class="cursor-pointer p-3.5 rounded-xl border ${colorBorder} transition-all flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-bold text-slate-900">Bomba #${b.numero_bomba}</span>
+              ${badgeEstado}
+            </div>
+            <div class="text-[11px] text-slate-500">Isla ${b.isla}</div>
+            <div class="text-xs font-bold mt-1 text-slate-800">${b.tanque_tipo_combustible || 'MAGNA'}</div>
+            <div class="text-[10px] text-slate-400 mt-2 font-mono">${Number(b.odometro_litros).toLocaleString()} L</div>
+          </div>
+        `;
+      });
+    }
+
+    function seleccionarBomba(id) {
+      selectedBomba = bombasData.find(b => b.id === id);
+      renderizarBombasGrid();
+      if (!selectedBomba) return;
+
+      document.getElementById('badgeCombustible').innerText = selectedBomba.tanque_tipo_combustible || 'MAGNA';
+      document.getElementById('precioLitroText').innerText = Number(selectedBomba.tanque_precio_litro || 23.99).toFixed(2);
+      document.getElementById('odometroActualText').innerText = Number(selectedBomba.odometro_litros).toLocaleString() + ' L';
+      calcularPorLitros();
+    }
+
+    function calcularPorLitros() {
+      if (!selectedBomba) return;
+      const litros = parseFloat(document.getElementById('inputLitros').value) || 0;
+      const precio = selectedBomba.tanque_precio_litro || 23.99;
+      const total = litros * precio;
+      document.getElementById('inputMonto').value = total.toFixed(2);
+    }
+
+    function calcularPorMonto() {
+      if (!selectedBomba) return;
+      const monto = parseFloat(document.getElementById('inputMonto').value) || 0;
+      const precio = selectedBomba.tanque_precio_litro || 23.99;
+      const litros = monto / precio;
+      document.getElementById('inputLitros').value = litros.toFixed(2);
+    }
+
+    function setLitros(l) {
+      document.getElementById('inputLitros').value = Number(l).toFixed(2);
+      calcularPorLitros();
+    }
+
+    function setMonto(m) {
+      document.getElementById('inputMonto').value = Number(m).toFixed(2);
+      calcularPorMonto();
+    }
+
+    async function ejecutarDespacho() {
+      if (!selectedBomba) {
+        mostrarAlerta('Selecciona una bomba primero.', 'error');
+        return;
+      }
+
+      const litros = parseFloat(document.getElementById('inputLitros').value);
+      if (!litros || litros <= 0) {
+        mostrarAlerta('Ingresa una cantidad válida de litros.', 'error');
+        return;
+      }
+
+      const metodoPago = document.querySelector('input[name="metodoPago"]:checked').value;
+      const placa = document.getElementById('inputPlaca').value;
+      const cliente = document.getElementById('inputCliente').value;
+
+      const btn = document.getElementById('btnDespachar');
+      btn.disabled = true;
+      btn.innerText = 'Procesando transacción ACID...';
+
+      try {
+        const resp = await fetch(`${API_BASE}/operaciones/ventas/despacho`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({
+            bomba_id: selectedBomba.id,
+            litros: litros,
+            metodo_pago: metodoPago,
+            placa_vehiculo: placa || null,
+            cliente: cliente || null
+          })
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          throw new Error(formatearError(data, 'Error en la venta'));
+        }
+
+        // Éxito: Actualizar el ticket térmico digital
+        actualizarTicket(data);
+        mostrarAlerta(`¡Despacho exitoso! Folio: ${data.folio}. Total cobrado: $${data.total.toFixed(2)} MXN`, 'success');
+
+        // Recargar datos actualizados
+        await cargarBombas();
+      } catch (err) {
+        mostrarAlerta(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🚀</span> Cobrar y Despachar Combustible';
+      }
+    }
+
+    function actualizarTicket(v) {
+      document.getElementById('ticketFolio').innerText = v.folio;
+      document.getElementById('ticketFecha').innerText = new Date(v.created_at).toLocaleString('es-MX');
+      document.getElementById('ticketDespachador').innerText = v.despachador_nombre || 'Despachador Turno';
+      document.getElementById('ticketBomba').innerText = `Bomba #${v.bomba_id}`;
+      document.getElementById('ticketCombustible').innerText = v.tipo_combustible;
+      document.getElementById('ticketLitros').innerText = `${Number(v.litros).toFixed(2)} L`;
+      document.getElementById('ticketPrecioUnitario').innerText = `$${Number(v.precio_unitario).toFixed(2)} MXN`;
+      document.getElementById('ticketMetodoPago').innerText = v.metodo_pago;
+      document.getElementById('ticketPlaca').innerText = v.placa_vehiculo || '---';
+      document.getElementById('ticketOdometro').innerText = `Inicial: ${Number(v.odometro_inicial).toFixed(1)} | Final: ${Number(v.odometro_final).toFixed(1)}`;
+      document.getElementById('ticketTotal').innerText = `$${Number(v.total).toFixed(2)}`;
+    }
+
+    // LÓGICA DE DASHBOARD Y TANQUES
+
+    async function cargarDashboard() {
+      try {
+        const [tanquesRes, ventasRes] = await Promise.all([
+          fetch(`${API_BASE}/tanques/`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
+          fetch(`${API_BASE}/operaciones/ventas?limit=10`, { headers: { 'Authorization': `Bearer ${currentToken}` } })
+        ]);
+
+        if (tanquesRes.ok) {
+          tanquesData = await tanquesRes.json();
+          renderizarTanques();
+        }
+
+        if (ventasRes.ok) {
+          const ventasData = await ventasRes.json();
+          renderizarVentas(ventasData);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderizarTanques() {
+      const container = document.getElementById('tanquesContainer');
+      container.innerHTML = '';
+
+      tanquesData.forEach(t => {
+        const pct = t.porcentaje_ocupacion || 0;
+        let barColor = 'bg-emerald-500';
+        let badgeColor = 'bg-emerald-100 text-emerald-800';
+        if (t.tipo_combustible === 'PREMIUM') {
+          barColor = 'bg-rose-500';
+          badgeColor = 'bg-rose-100 text-rose-800';
+        } else if (t.tipo_combustible === 'DIESEL') {
+          barColor = 'bg-slate-700';
+          badgeColor = 'bg-slate-200 text-slate-800';
+        }
+
+        const alertaBaja = t.alerta_nivel_bajo 
+          ? `<div class="mt-2 text-[10px] font-bold text-rose-600 flex items-center gap-1 bg-rose-50 p-1.5 rounded-lg border border-rose-200">
+               ⚠️ ALERTA: Nivel crítico (< 15%). Solicitar pipa urgente.
+             </div>` 
+          : '';
+
+        container.innerHTML += `
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-[10px] font-mono text-slate-400 font-bold">TANQUE #${t.numero_tanque}</span>
+                <h4 class="text-sm font-bold text-slate-900">${t.identificador || 'Tanque Subterráneo'}</h4>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold ${badgeColor}">${t.tipo_combustible}</span>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-semibold mb-1">
+                <span class="text-slate-600">Nivel de Combustible:</span>
+                <span class="text-slate-900 font-bold">${pct}%</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+                <div class="${barColor} h-3 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+              <div>
+                <div class="text-[10px] text-slate-400">Litros Disponibles:</div>
+                <div class="font-bold text-slate-800">${Number(t.nivel_actual).toLocaleString()} L</div>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400">Capacidad Total:</div>
+                <div class="font-bold text-slate-800">${Number(t.capacidad_total).toLocaleString()} L</div>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400">Costo Adquisición:</div>
+                <div class="font-medium text-slate-600">$${t.costo_compra_litro.toFixed(2)}</div>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400">Precio Venta Vigente:</div>
+                <div class="font-bold text-emerald-700">$${t.precio_venta_litro.toFixed(2)}</div>
+              </div>
+            </div>
+
+            ${alertaBaja}
+          </div>
+        `;
+      });
+    }
+
+    function renderizarVentas(ventas) {
+      const tbody = document.getElementById('tablaVentasBody');
+      document.getElementById('totalTransaccionesBadge').innerText = `${ventas.length} transacciones`;
+      tbody.innerHTML = '';
+
+      if (ventas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-400">No hay ventas registradas</td></tr>';
+        return;
+      }
+
+      ventas.forEach(v => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600 font-bold">${esc(v.folio)}</td>
+            <td class="py-2.5 px-3 text-[11px] text-slate-500">${new Date(v.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</td>
+            <td class="py-2.5 px-3">Bomba #${v.bomba_id}</td>
+            <td class="py-2.5 px-3 font-semibold">${v.tipo_combustible}</td>
+            <td class="py-2.5 px-3 font-bold">${v.litros.toFixed(2)} L</td>
+            <td class="py-2.5 px-3 font-bold text-emerald-700">$${v.total.toFixed(2)}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 font-bold">${v.metodo_pago}</span></td>
+            <td class="py-2.5 px-3 text-slate-500 text-[11px]">${esc(v.despachador_nombre || '---')}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // LÓGICA DE CORTE DE TURNO
+
+    async function generarCorte() {
+      const container = document.getElementById('corteResultContainer');
+      container.innerHTML = '<div class="text-center py-6 text-slate-400">Consultando datos y auditando bombas...</div>';
+
+      try {
+        const resp = await fetch(`${API_BASE}/operaciones/corte`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+
+        if (resp.status === 403) {
+          container.innerHTML = `
+            <div class="p-6 text-center bg-rose-50 rounded-2xl border border-rose-200 text-rose-800 space-y-2">
+              <span class="text-2xl">🔒</span>
+              <h4 class="font-bold">Acceso Denegado (RBAC)</h4>
+              <p class="text-xs">El rol de <b>DESPACHADOR</b> no tiene permisos para generar cortes de caja. Cambia el rol en el selector superior a <b>Supervisor</b> o <b>Administrador</b>.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(formatearError(data, 'No se pudo generar el corte'));
+
+        container.innerHTML = `
+          <!-- RESUMEN TOP CARDS -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] uppercase font-bold text-slate-400">Transacciones Totales</span>
+              <div class="text-2xl font-bold text-slate-900 mt-1">${data.total_transacciones}</div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] uppercase font-bold text-slate-400">Litros Despachados</span>
+              <div class="text-2xl font-bold text-slate-900 mt-1">${Number(data.litros_totales_vendidos).toLocaleString()} L</div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] uppercase font-bold text-slate-400">Ingresos Totales</span>
+              <div class="text-2xl font-bold text-emerald-600 mt-1">$${Number(data.ingresos_totales).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+            </div>
+            <div class="p-4 rounded-xl ${data.cuadre_status === 'CUADRADO_EXACTO' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'} border">
+              <span class="text-[10px] uppercase font-bold">Estado del Arqueo</span>
+              <div class="text-xs font-bold mt-1 flex items-center gap-1.5">
+                <span>${data.cuadre_status === 'CUADRADO_EXACTO' ? '✅' : '⚠️'}</span>
+                <span>${data.cuadre_status}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-3 bg-slate-50 rounded-xl border text-xs text-slate-600">
+            <b>Diagnóstico de Auditoría:</b> ${esc(data.observaciones)}
+          </div>
+
+          <!-- DESGLOSE METODOS Y COMBUSTIBLES -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="border border-slate-200 rounded-xl p-4">
+              <h4 class="font-bold text-xs uppercase text-slate-700 mb-3">Recaudación por Método de Pago</h4>
+              <div class="space-y-2">
+                ${data.desglose_metodos_pago.map(m => `
+                  <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100 last:border-0">
+                    <span class="font-medium text-slate-700">${m.metodo} (${m.cantidad_transacciones} ops)</span>
+                    <span class="font-bold text-slate-900">$${m.monto_total.toFixed(2)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="border border-slate-200 rounded-xl p-4">
+              <h4 class="font-bold text-xs uppercase text-slate-700 mb-3">Venta por Tipo de Combustible</h4>
+              <div class="space-y-2">
+                ${data.desglose_combustibles.map(c => `
+                  <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100 last:border-0">
+                    <span class="font-medium text-slate-700">${c.tipo_combustible} (${c.litros_vendidos.toFixed(2)} L)</span>
+                    <span class="font-bold text-emerald-700">$${c.monto_total.toFixed(2)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        container.innerHTML = `<div class="text-rose-600 text-xs text-center py-4">Error al generar corte: ${esc(e.message)}</div>`;
+      }
+    }
+
+    // LÓGICA DE MODAL DE PIPAS
+
+    function abrirModalPipa() {
+      if (currentRole === 'DESPACHADOR') {
+        mostrarAlerta('Se requiere rol de SUPERVISOR o ADMIN para recibir pipas de combustible.', 'error');
+        return;
+      }
+      document.getElementById('modalPipa').classList.remove('hidden');
+    }
+
+    function cerrarModalPipa() {
+      document.getElementById('modalPipa').classList.add('hidden');
+    }
+
+    async function ejecutarRecepcionPipa() {
+      const tanqueId = parseInt(document.getElementById('pipaTanqueId').value);
+      const remision = document.getElementById('pipaRemision').value.trim();
+      const proveedor = document.getElementById('pipaProveedor').value.trim();
+      const litros = parseFloat(document.getElementById('pipaLitros').value);
+      const costo = parseFloat(document.getElementById('pipaCosto').value);
+      const notas = document.getElementById('pipaNotas').value.trim();
+
+      if (!remision || !litros || litros <= 0) {
+        alert('Ingresa datos válidos');
+        return;
+      }
+
+      try {
+        const resp = await fetch(`${API_BASE}/operaciones/suministro/recepcion-pipa`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({
+            tanque_id: tanqueId,
+            folio_remision: remision,
+            proveedor: proveedor,
+            litros_recibidos: litros,
+            costo_compra_litro: costo,
+            notas: notas || null
+          })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(formatearError(data, 'Error en descarga'));
+
+        cerrarModalPipa();
+        mostrarAlerta(`¡Pipa recibida con éxito! ${data.litros_recibidos} L descargados al tanque #${data.tanque_id}`, 'success');
+        await cargarDashboard();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // Helper para alertas UI
+    function mostrarAlerta(msg, tipo = 'info') {
+      const box = document.getElementById('alertBox');
+      box.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-amber-50', 'text-amber-800', 'border-amber-200');
+
+      if (tipo === 'success') {
+        box.classList.add('bg-emerald-50', 'text-emerald-800', 'border-emerald-200');
+      } else if (tipo === 'error') {
+        box.classList.add('bg-rose-50', 'text-rose-800', 'border-rose-200');
+      } else {
+        box.classList.add('bg-amber-50', 'text-amber-800', 'border-amber-200');
+      }
+
+      box.innerText = msg;
+      setTimeout(() => { box.classList.add('hidden'); }, 5000);
+    }
+  </script>
+</body>
+</html>

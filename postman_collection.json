@@ -1,0 +1,390 @@
+{
+  "info": {
+    "name": "Gasolinera API - Suite Completa de Pruebas",
+    "_postman_id": "gasolinera-api-collection-2026",
+    "description": "Colección completa de pruebas funcionales para la API RESTful de la Gasolinera, incluyendo Autenticación JWT, RBAC, Catálogo de Infraestructura, Despacho ACID, Recepción de Pipas y Corte de Turno.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Autenticación y Perfil",
+      "item": [
+        {
+          "name": "Login - Administrador (Guarda Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"admin_token\", jsonData.access_token);",
+                  "pm.environment.set(\"token\", jsonData.access_token);",
+                  "pm.test(\"Rol recibido es ADMIN\", function () {",
+                  "    pm.expect(jsonData.rol).to.eql(\"ADMIN\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/auth/login/json", "host": ["{{base_url}}"], "path": ["auth", "login", "json"]}
+          }
+        },
+        {
+          "name": "Login - Supervisor (Guarda Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () { pm.response.to.have.status(200); });",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"supervisor_token\", jsonData.access_token);",
+                  "pm.test(\"Rol recibido es SUPERVISOR\", function () { pm.expect(jsonData.rol).to.eql(\"SUPERVISOR\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{supervisor_email}}\",\n  \"password\": \"{{supervisor_password}}\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/auth/login/json", "host": ["{{base_url}}"], "path": ["auth", "login", "json"]}
+          }
+        },
+        {
+          "name": "Login - Despachador (Guarda Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () { pm.response.to.have.status(200); });",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"despachador_token\", jsonData.access_token);",
+                  "pm.test(\"Rol recibido es DESPACHADOR\", function () { pm.expect(jsonData.rol).to.eql(\"DESPACHADOR\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{despachador_email}}\",\n  \"password\": \"{{despachador_password}}\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/auth/login/json", "host": ["{{base_url}}"], "path": ["auth", "login", "json"]}
+          }
+        },
+        {
+          "name": "Login Erróneo - Password Inválido (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 401 Unauthorized\", function () { pm.response.to.have.status(401); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gasolinera.com\",\n  \"password\": \"wrong_password_123\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/auth/login/json", "host": ["{{base_url}}"], "path": ["auth", "login", "json"]}
+          }
+        },
+        {
+          "name": "Perfil - Usuario Actual /me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Contiene email\", function () { pm.expect(pm.response.json()).to.have.property('email'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Catálogo de Infraestructura",
+      "item": [
+        {
+          "name": "Listar Tanques de Combustible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Devuelve lista de tanques\", function () { pm.expect(pm.response.json().length).to.be.above(0); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/tanques/", "host": ["{{base_url}}"], "path": ["tanques", ""]}
+          }
+        },
+        {
+          "name": "Listar Bombas / Dispensarios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/bombas/", "host": ["{{base_url}}"], "path": ["bombas", ""]}
+          }
+        },
+        {
+          "name": "Crear Tanque con Regla de Precio Inválido (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 422 por validación de precio < costo\", function () { pm.response.to.have.status(422); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numero_tanque\": 88,\n  \"tipo_combustible\": \"MAGNA\",\n  \"capacidad_total\": 20000.0,\n  \"nivel_actual\": 5000.0,\n  \"costo_compra_litro\": 22.0,\n  \"precio_venta_litro\": 18.0,\n  \"esta_activo\": true\n}"
+            },
+            "url": {"raw": "{{base_url}}/tanques/", "host": ["{{base_url}}"], "path": ["tanques", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Transacciones y Operaciones (Integrante 2)",
+      "item": [
+        {
+          "name": "Registrar Despacho / Venta Magna (201 Created)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 201 Created\", function () { pm.response.to.have.status(201); });",
+                  "var data = pm.response.json();",
+                  "pm.test(\"Folio generado\", function () { pm.expect(data.folio).to.include(\"VTA-\"); });",
+                  "pm.test(\"Total mayor a cero\", function () { pm.expect(data.total).to.be.above(0); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{despachador_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bomba_id\": 1,\n  \"litros\": 35.0,\n  \"metodo_pago\": \"EFECTIVO\",\n  \"placa_vehiculo\": \"NL-1234-A\",\n  \"cliente\": \"Cliente Frecuente\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/operaciones/ventas/despacho", "host": ["{{base_url}}"], "path": ["operaciones", "ventas", "despacho"]}
+          }
+        },
+        {
+          "name": "Registrar Despacho Premium con Tarjeta (201 Created)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 201 Created\", function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{despachador_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bomba_id\": 2,\n  \"litros\": 20.0,\n  \"metodo_pago\": \"TARJETA\",\n  \"placa_vehiculo\": \"TX-9988-B\",\n  \"cliente\": \"Flotilla de Logística\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/operaciones/ventas/despacho", "host": ["{{base_url}}"], "path": ["operaciones", "ventas", "despacho"]}
+          }
+        },
+        {
+          "name": "Despacho Rechazado por Inventario Insuficiente (409 Conflict)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 409 Conflict\", function () { pm.response.to.have.status(409); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{despachador_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bomba_id\": 1,\n  \"litros\": 999999.0,\n  \"metodo_pago\": \"EFECTIVO\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/operaciones/ventas/despacho", "host": ["{{base_url}}"], "path": ["operaciones", "ventas", "despacho"]}
+          }
+        },
+        {
+          "name": "Listar Historial de Ventas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/operaciones/ventas", "host": ["{{base_url}}"], "path": ["operaciones", "ventas"]}
+          }
+        },
+        {
+          "name": "Recepción de Pipa Exitosa (201 Created)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 201 Created\", function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{supervisor_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tanque_id\": 1,\n  \"folio_remision\": \"REM-POSTMAN-{{$timestamp}}\",\n  \"proveedor\": \"PEMEX Refinación\",\n  \"litros_recibidos\": 3000.0,\n  \"costo_compra_litro\": 20.80,\n  \"notas\": \"Prueba automatizada desde Postman\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/operaciones/suministro/recepcion-pipa", "host": ["{{base_url}}"], "path": ["operaciones", "suministro", "recepcion-pipa"]}
+          }
+        },
+        {
+          "name": "Recepción Rechazada por Sobrecupo / Derrame (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 400 Bad Request\", function () { pm.response.to.have.status(400); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{supervisor_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tanque_id\": 1,\n  \"folio_remision\": \"REM-OVERFLOW-POSTMAN\",\n  \"proveedor\": \"Transportes Pesados\",\n  \"litros_recibidos\": 100000.0,\n  \"costo_compra_litro\": 20.80\n}"
+            },
+            "url": {"raw": "{{base_url}}/operaciones/suministro/recepcion-pipa", "host": ["{{base_url}}"], "path": ["operaciones", "suministro", "recepcion-pipa"]}
+          }
+        },
+        {
+          "name": "Generar Arqueo y Corte de Turno (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code es 200 OK\", function () { pm.response.to.have.status(200); });",
+                  "var data = pm.response.json();",
+                  "pm.test(\"Contiene resumen de transacciones\", function () { pm.expect(data).to.have.property('total_transacciones'); });",
+                  "pm.test(\"Contiene diagnóstico de cuadre\", function () { pm.expect(data).to.have.property('cuadre_status'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{supervisor_token}}"}],
+            "url": {"raw": "{{base_url}}/operaciones/corte", "host": ["{{base_url}}"], "path": ["operaciones", "corte"]}
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+[project]
+name = "gasolinera-api"
+version = "0.1.0"
+description = "API RESTful para la administración operativa y transaccional de una estación de servicio (Gasolinera)"
+authors = [
+    {name = "Alan Emiliano Palomo Plata"},
+    {name = "Leonardo Daniel Vazquez Meza"},
+    {name = "José Emilio Rivera Reyna"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic[email]>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy>=2.0.36",
+    "pyjwt>=2.9.0",
+    "bcrypt>=4.2.0",
+    "python-multipart>=0.0.12",
+    "psycopg2-binary>=2.9.9",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "SIM"]
+ignore = ["E501", "B008"]  # B008: Depends() en argumentos es el patrón estándar de FastAPI
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3.0"
+httpx = ">=0.27.0"
