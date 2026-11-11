@@ -1,6 +1,6 @@
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.models.infraestructura import TipoCombustible
 from app.models.operaciones import MetodoPagoEnum
@@ -40,8 +40,8 @@ class VentaResponse(BaseModel):
 # ESQUEMAS PARA RECEPCIÓN DE PIPAS
 class RecepcionPipaCreate(BaseModel):
     tanque_id: int = Field(..., gt=0, description="ID del tanque subterráneo de destino")
-    folio_remision: str = Field(..., min_length=3, max_length=60, description="Número de remisión o factura del transportista")
-    proveedor: str = Field(..., min_length=2, max_length=120, description="Nombre de la empresa distribuidora (ej: PEMEX, Mobil)")
+    folio_remision: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=60)] = Field(..., description="Número de remisión o factura del transportista")
+    proveedor: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=120)] = Field(..., description="Nombre de la empresa distribuidora (ej: PEMEX, Mobil)")
     placa_pipa: OptionalCleanStr = Field(None, max_length=30, description="Placa del tractocamión o remolque")
     chofer: OptionalCleanStr = Field(None, max_length=120, description="Nombre del operador que entrega")
     litros_recibidos: float = Field(..., gt=0, description="Volumen neto de combustible descargado en litros")

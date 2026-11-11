@@ -25,6 +25,16 @@
       background: radial-gradient(circle, transparent, transparent 50%, #fbfbfa 50%, #fbfbfa 100%);
       background-size: 16px 16px;
     }
+
+    /* Al imprimir solo se muestra el ticket */
+    #printArea { display: none; }
+    @media print {
+      body { display: block !important; min-height: 0 !important; background: #fff !important; }
+      body > *:not(#printArea) { display: none !important; }
+      #printArea { display: block; width: 80mm; margin: 0 auto; }
+      #printArea .ticket-paper { box-shadow: none; border: none; }
+      #printArea .ticket-paper::after { display: none; }
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
@@ -196,7 +206,7 @@
       <!-- COLUMNA DERECHA: TICKET TÉRMICO DIGITAL -->
       <div class="lg:col-span-5 flex flex-col items-center justify-start">
         <div class="w-full max-w-sm">
-          <div class="ticket-paper p-6 rounded-t-2xl border border-slate-300 text-slate-800 text-xs font-mono">
+          <div id="ticketImprimible" class="ticket-paper p-6 rounded-t-2xl border border-slate-300 text-slate-800 text-xs font-mono">
             <div class="text-center pb-3 border-b border-dashed border-slate-300 space-y-1">
               <h3 class="font-bold text-sm tracking-wider text-slate-900">ESTACIÓN DE SERVICIO CENTRAL</h3>
               <p class="text-[10px] text-slate-500">GASOLINERA Y SERVICIOS S.A. DE C.V.</p>
@@ -215,7 +225,7 @@
               </div>
               <div class="flex justify-between text-slate-500">
                 <span>DESPACHADOR:</span>
-                <span id="ticketDespachador">Juan Pérez</span>
+                <span id="ticketDespachador">---</span>
               </div>
               <div class="flex justify-between text-slate-500">
                 <span>DISPENSARIO:</span>
@@ -257,7 +267,7 @@
             </div>
           </div>
           <div class="text-center mt-4">
-            <button onclick="window.print()" class="text-xs text-slate-500 hover:text-slate-700 font-semibold underline">
+            <button onclick="imprimirTicket()" class="text-xs text-slate-500 hover:text-slate-700 font-semibold underline">
               🖨️ Imprimir Recibo
             </button>
           </div>
@@ -399,6 +409,9 @@
     </div>
   </div>
 
+  <!-- CONTENEDOR DE IMPRESIÓN DEL TICKET -->
+  <div id="printArea"></div>
+
   <!-- JAVASCRIPT DEL FRONTEND -->
   <script>
     // Configuración base de la API
@@ -459,10 +472,41 @@
         const data = await resp.json();
         currentToken = data.access_token;
         currentRole = data.rol;
+        reiniciarTicket(data.nombre);
+        reiniciarCorte();
         mostrarAlerta(`Sesión iniciada como: ${data.nombre} (${data.rol})`, 'success');
       } catch (err) {
         console.error(err);
         mostrarAlerta('No se pudo conectar con el backend en ' + API_BASE + '. ¿Está corriendo el servidor?', 'error');
+      }
+    }
+
+    // Deja el ticket en blanco con el nombre del usuario activo
+    function reiniciarTicket(nombre) {
+      const valores = {
+        ticketFolio: '---',
+        ticketFecha: '--/--/---- --:--',
+        ticketDespachador: nombre,
+        ticketBomba: '---',
+        ticketCombustible: '---',
+        ticketLitros: '0.00 L',
+        ticketPrecioUnitario: '$0.00 MXN',
+        ticketMetodoPago: '---',
+        ticketPlaca: '---',
+        ticketOdometro: 'Inicial: 0 | Final: 0',
+        ticketTotal: '$0.00',
+      };
+      Object.entries(valores).forEach(([id, texto]) => {
+        document.getElementById(id).innerText = texto;
+      });
+    }
+
+    // Quita el corte del usuario anterior; si la pestaña está abierta, lo consulta con el rol nuevo
+    function reiniciarCorte() {
+      document.getElementById('corteResultContainer').innerHTML =
+        '<div class="text-center py-10 text-slate-400">Presiona "Ejecutar Cuadre Ahora" para obtener el arqueo consolidado.</div>';
+      if (!document.getElementById('view-corte').classList.contains('hidden')) {
+        generarCorte();
       }
     }
 
@@ -899,6 +943,15 @@
     }
 
     // Helper para alertas UI
+    // Copia el ticket a un contenedor propio para que sea lo único que se imprima
+    function imprimirTicket() {
+      document.getElementById('printArea').innerHTML = document.getElementById('ticketImprimible').outerHTML;
+      window.print();
+    }
+    window.addEventListener('afterprint', () => {
+      document.getElementById('printArea').innerHTML = '';
+    });
+
     function mostrarAlerta(msg, tipo = 'info') {
       const box = document.getElementById('alertBox');
       box.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-amber-50', 'text-amber-800', 'border-amber-200');
