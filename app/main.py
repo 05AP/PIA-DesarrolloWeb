@@ -96,7 +96,7 @@ def root_redirect():
 
 @app.get("/health", tags=["Estado del Sistema"])
 def health_check():
-    """Health check para el balanceador / plataforma en la nube. Verifica también la conexión a la BD."""
+    """Verifica que el servidor y la conexión a la base de datos estén funcionando."""
     db_ok = True
     db = SessionLocal()
     try:

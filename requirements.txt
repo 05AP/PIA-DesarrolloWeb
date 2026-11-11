@@ -1,6 +1,6 @@
 # Dependencias de producción con versiones exactas (sincronizadas con poetry.lock).
-# Fuente de verdad: pyproject.toml + poetry.lock (Poetry). Este archivo existe para
-# plataformas que instalan con pip (Render, Docker).
+# Fuente de verdad: pyproject.toml + poetry.lock (Poetry). Este archivo es una alternativa
+# para instalar con pip.
 fastapi==0.162.4
 uvicorn[standard]==0.54.0
 pydantic[email]==2.14.3

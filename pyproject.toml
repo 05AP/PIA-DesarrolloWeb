@@ -28,10 +28,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 package-mode = false
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
-
 [tool.ruff]
 target-version = "py310"
 line-length = 120
@@ -40,6 +36,3 @@ line-length = 120
 select = ["E", "F", "W", "B", "I", "SIM"]
 ignore = ["E501", "B008"]  # B008: Depends() en argumentos es el patrón estándar de FastAPI
 
-[tool.poetry.group.dev.dependencies]
-pytest = ">=8.3.0"
-httpx = ">=0.27.0"

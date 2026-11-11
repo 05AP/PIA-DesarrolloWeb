@@ -35,7 +35,7 @@ Proyecto desarrollado para la materia **Desarrollo Web: Tecnologías Servidor**.
   4. **Corte y Arqueo:** Conciliación de ventas por método de pago (Efectivo, Tarjeta, Vales) y por combustible, con auditoría de odómetros que detecta litros despachados sin venta registrada.
   5. **Ajustes de Inventario:** Mermas y calibraciones con bitácora de auditoría (usuario, motivo, nivel previo y posterior).
   6. **Frontend Integrado:** Terminal de Punto de Venta (POS) con ticket digital y Panel de Monitoreo (Dashboard) de tanques en tiempo real.
-* **Pruebas:** Colección de pruebas en Postman, pruebas manuales en Swagger UI y 10 pruebas básicas con `pytest`.
+* **Pruebas:** Colección de pruebas en Postman y pruebas manuales en Swagger UI.
 
 ---
 
@@ -115,12 +115,8 @@ Una vez iniciado el servidor en `http://127.0.0.1:8000`:
 
 ---
 
-### Ejecutar Pruebas Automatizadas
-Para correr las pruebas básicas (usan una base de datos de prueba aparte):
-```bash
-poetry run pytest -v
-```
-Para pruebas con Postman, importa los archivos [`postman_collection.json`](postman_collection.json) y [`postman_environment.json`](postman_environment.json) incluidos en la raíz del proyecto.
+### Ejecutar Pruebas
+Con el servidor iniciado, las pruebas se realizan desde Swagger UI (`/docs`) o Postman. Para Postman, importa los archivos [`postman_collection.json`](postman_collection.json) y [`postman_environment.json`](postman_environment.json) incluidos en la raíz del proyecto.
 
 ---
 
@@ -147,12 +143,3 @@ Para pruebas con Postman, importa los archivos [`postman_collection.json`](postm
 - CORS restringido a orígenes configurados; errores 500 genéricos (el detalle solo va a los logs).
 - En `ENVIRONMENT=production` la app no arranca si `SECRET_KEY` es la de ejemplo o tiene menos de 32 caracteres.
 - Bloqueo de filas (`SELECT ... FOR UPDATE` en PostgreSQL) en ventas, pipas y ajustes para evitar condiciones de carrera.
-
-## 6. Despliegue (Render)
-
-1. Sube el repositorio a GitHub.
-2. En Render: **New → Blueprint** y selecciona el repositorio; `render.yaml` crea la base PostgreSQL y el servicio web.
-3. Render genera `SECRET_KEY` automáticamente y conecta `DATABASE_URL`. El health check usa `/health`.
-4. Al arrancar se crean las tablas y los datos demo. Abre `https://<tu-servicio>.onrender.com/app`.
-
-También se incluye `Dockerfile` (usuario sin privilegios + healthcheck) para Railway, Fly.io u otros.

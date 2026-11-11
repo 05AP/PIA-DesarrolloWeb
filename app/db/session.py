@@ -6,9 +6,6 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from app.core.config import settings
 
 db_url = settings.DATABASE_URL
-# Render/Heroku entregan "postgres://", pero SQLAlchemy 2.x exige "postgresql://"
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 is_sqlite = db_url.startswith("sqlite")
 connect_args = {"check_same_thread": False} if is_sqlite else {}

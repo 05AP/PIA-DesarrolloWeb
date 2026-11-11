@@ -331,7 +331,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tanque_id\": 1,\n  \"folio_remision\": \"REM-POSTMAN-{{$timestamp}}\",\n  \"proveedor\": \"PEMEX Refinación\",\n  \"litros_recibidos\": 3000.0,\n  \"costo_compra_litro\": 20.80,\n  \"notas\": \"Prueba automatizada desde Postman\"\n}"
+              "raw": "{\n  \"tanque_id\": 1,\n  \"folio_remision\": \"REM-POSTMAN-{{$timestamp}}\",\n  \"proveedor\": \"PEMEX Refinación\",\n  \"litros_recibidos\": 3000.0,\n  \"costo_compra_litro\": 20.80,\n  \"notas\": \"Prueba desde Postman\"\n}"
             },
             "url": {"raw": "{{base_url}}/operaciones/suministro/recepcion-pipa", "host": ["{{base_url}}"], "path": ["operaciones", "suministro", "recepcion-pipa"]}
           }
