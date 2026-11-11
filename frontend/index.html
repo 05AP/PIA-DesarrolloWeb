@@ -26,14 +26,39 @@
       background-size: 16px 16px;
     }
 
-    /* Al imprimir solo se muestra el ticket */
-    #printArea { display: none; }
+    /* REGLAS DE IMPRESIÓN AISLADAS PARA TICKET TÉRMICO / PDF */
     @media print {
-      body { display: block !important; min-height: 0 !important; background: #fff !important; }
-      body > *:not(#printArea) { display: none !important; }
-      #printArea { display: block; width: 80mm; margin: 0 auto; }
-      #printArea .ticket-paper { box-shadow: none; border: none; }
-      #printArea .ticket-paper::after { display: none; }
+      @page {
+        size: 80mm auto;
+        margin: 0;
+      }
+      html, body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+      }
+      /* Oculta la interfaz web, headers, alertas y botones */
+      header, main, footer, #alertBox, #modalPipa {
+        display: none !important;
+      }
+      /* Renderiza únicamente el ticket con ancho ajustado */
+      #ticketImprimible {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 80mm !important;
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 auto !important;
+        padding: 10px !important;
+      }
+      #ticketImprimible::after {
+        display: none !important;
+      }
     }
   </style>
 </head>
@@ -944,13 +969,56 @@
 
     // Helper para alertas UI
     // Copia el ticket a un contenedor propio para que sea lo único que se imprima
-    function imprimirTicket() {
-      document.getElementById('printArea').innerHTML = document.getElementById('ticketImprimible').outerHTML;
-      window.print();
+   function imprimirTicket() {
+      const ticketHtml = document.getElementById('ticketImprimible').outerHTML;
+      const printWindow = window.open('', '_blank', 'width=500,height=700');
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8">
+          <title>Imprimir Recibo - Gasolinera Central</title>
+          <script src="https://cdn.tailwindcss.com"><\/script>
+          <style>
+            @media print {
+              @page { margin: 10mm; }
+              body { margin: 0; padding: 0; }
+            }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              background: #ffffff; 
+              display: flex;
+              justify-content: center;
+              padding: 20px;
+            }
+            /* Se expande al 100% del ancho disponible para verse claro y grande */
+            .ticket-paper {
+              width: 100% !important;
+              max-width: 600px !important;
+              font-size: 15px !important;
+              box-shadow: none !important;
+              border: none !important;
+            }
+            .ticket-paper * {
+              font-size: 14px !important;
+            }
+            .ticket-paper h3 {
+              font-size: 18px !important;
+            }
+            .ticket-paper #ticketTotal {
+              font-size: 28px !important;
+            }
+            .ticket-paper::after { display: none !important; }
+          </style>
+        </head>
+        <body onload="window.print(); window.close();">
+          ${ticketHtml}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
-    window.addEventListener('afterprint', () => {
-      document.getElementById('printArea').innerHTML = '';
-    });
 
     function mostrarAlerta(msg, tipo = 'info') {
       const box = document.getElementById('alertBox');
